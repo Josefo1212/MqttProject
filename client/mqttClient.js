@@ -4,9 +4,11 @@ export class MQTTClient {
   // Campos privados: el usuario de la librería no puede acceder al socket ni a la lista de callbacks directamente
   #socket;
   #callbacks;
+  #buffer;
 
   constructor() {
     this.#callbacks = new Map();
+    this.#buffer = '';
   }
 
   // Se utiliza una Promesa para poder usar await al conectarnos en los scripts
@@ -18,17 +20,23 @@ export class MQTTClient {
 
       // Escuchar los mensajes entrantes del servidor
       this.#socket.on('data', (data) => {
-        try {
-          const payload = JSON.parse(data.toString());
-          
-          // Si el mensaje es una publicación del servidor y estamos suscritos, ejecutamos el callback
-          if (payload.type === 'message' && this.#callbacks.has(payload.channel)) {
-            const callback = this.#callbacks.get(payload.channel);
-            callback(payload.message);
+        this.#buffer += data.toString();
+
+        let newlineIndex;
+        while ((newlineIndex = this.#buffer.indexOf('\n')) !== -1) {
+          const packet = this.#buffer.slice(0, newlineIndex);
+          this.#buffer = this.#buffer.slice(newlineIndex + 1);
+
+          try {
+            const payload = JSON.parse(packet);
+
+            if (payload.type === 'message' && this.#callbacks.has(payload.channel)) {
+              const callback = this.#callbacks.get(payload.channel);
+              callback(payload.message);
+            }
+          } catch (error) {
+            console.error('[-] Error parseando el paquete del servidor:', error.message);
           }
-        } catch (error) {
-          // Ignoramos fragmentos no válidos o errores de parseo por ahora
-          console.error('[-] Error parseando el paquete del servidor:', error.message);
         }
       });
 
@@ -49,7 +57,7 @@ export class MQTTClient {
     const packet = JSON.stringify({
       type: 'subscribe',
       channel: channel
-    });
+    }) + '\n';
 
     this.#socket.write(packet);
   }
@@ -62,7 +70,7 @@ export class MQTTClient {
       type: 'publish',
       channel: channel,
       message: message
-    });
+    }) + '\n';
 
     this.#socket.write(packet);
   }
