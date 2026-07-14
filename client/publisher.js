@@ -11,7 +11,6 @@ try {
   console.log(`[🚀] Publicando en "${targetChannel}"...`);
   client.publish(targetChannel, payload);
 
-  // Retardo asíncrono simple para asegurar que el socket hace "flush" antes de cerrarlo
   setTimeout(() => {
     client.disconnect();
     console.log('[✓] Mensaje enviado y cliente desconectado.');

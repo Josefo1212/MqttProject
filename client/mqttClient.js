@@ -1,7 +1,6 @@
 import net from 'node:net';
 
 export class MQTTClient {
-  // Campos privados: el usuario de la librería no puede acceder al socket ni a la lista de callbacks directamente
   #socket;
   #callbacks;
   #buffer;
@@ -11,7 +10,6 @@ export class MQTTClient {
     this.#buffer = '';
   }
 
-  // Se utiliza una Promesa para poder usar await al conectarnos en los scripts
   connect(port = 1883, host = '127.0.0.1') {
     return new Promise((resolve, reject) => {
       this.#socket = net.createConnection({ port, host }, () => {
@@ -46,14 +44,11 @@ export class MQTTClient {
     });
   }
 
-  // Método para suscribirse a un canal
   subscribe(channel, callback) {
     if (!this.#socket) throw new Error('You must connect before subscribing.');
 
-    // Guardamos la función que se ejecutará cuando llegue un mensaje a este canal
     this.#callbacks.set(channel, callback);
 
-    // Armamos el paquete según el protocolo acordado con la Parte 2
     const packet = JSON.stringify({
       type: 'subscribe',
       channel: channel
@@ -62,7 +57,6 @@ export class MQTTClient {
     this.#socket.write(packet);
   }
 
-  // Método para publicar un mensaje en un canal
   publish(channel, message) {
     if (!this.#socket) throw new Error('You must connect before publishing.');
 
@@ -75,7 +69,6 @@ export class MQTTClient {
     this.#socket.write(packet);
   }
 
-  // Cierre limpio de la conexión
   disconnect() {
     if (this.#socket) {
       this.#socket.end();
